@@ -962,13 +962,9 @@ def advanced_config(
     log.debug("Running vmware_esxi.advanced_config")
     ret = {"name": name, "result": None, "comment": "", "changes": {}}
     if not service_instance:
-        #print("config = ", __opts__)
         log.warn("config %r", __opts__)
         service_instance = get_service_instance(config=__opts__)
-        # service_instance = get_service_instance(
-        #   config=__opts__, pillar=__pillar__)
 
-    #import pdb; pdb.set_trace()
     esxi_config_old = __salt__["vmware_esxi.get_advanced_config"](
         config_name=name,
         datacenter_name=datacenter_name,
@@ -993,7 +989,7 @@ def advanced_config(
             ret["changes"] = {"new": {}}
             for host in esxi_config_old:
                 ret["changes"]["new"][host] = f"{name} will be set to {value}"
-                #ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
+                ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
             ret["comment"] = "These options are set to change."
         return ret
 
@@ -1010,7 +1006,7 @@ def advanced_config(
                 host_name=host,
                 service_instance=service_instance,
             )
-            #ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
+            ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
             ret["changes"]["new"][host] = f"{name} was changed to {config[host][name]}"
 
     if change:
@@ -1021,8 +1017,9 @@ def advanced_config(
 
 
 def firewall_config(
-    name,
-    value,
+    name=None,
+    value=None,
+    config_input=None,
     datacenter_name=None,
     cluster_name=None,
     host_name=None,
@@ -1059,7 +1056,7 @@ def firewall_config(
     ret = {"name": name, "result": None, "comment": "", "changes": {}}
     if not service_instance:
         service_instance = get_service_instance(
-            config=__opts__, pillar=__pillar__)
+            config=__opts__)
 
     hosts = utils_esxi.get_hosts(
         service_instance=service_instance,
@@ -1098,6 +1095,18 @@ def firewall_config(
                 ]
 
     if __opts__["test"]:
+        if config_input:
+            ret["changes"] = {"diff": {}}
+            # compare with Target State File
+            changes = {}
+            for host in esxi_config_old:
+                # I am assuming config input is the state shared across all hosts. (Verify)
+                changes[host] = salt.utils.data.recursive_diff(
+                    esxi_config_old[host], config_input["firewall_rules"])["new"]
+            ret = {"name": name, "result": True,
+                   "comment": config_input["firewall_rules"], "changes": changes}
+            return ret
+
         ret["result"] = None
         ret["changes"] = {}
         for host in hosts:
