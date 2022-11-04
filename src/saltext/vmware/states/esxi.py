@@ -978,7 +978,7 @@ def advanced_config(
     )
     if __opts__["test"]:
         if config_input:
-            ret["changes"] = {"new": {}}
+            ret["changes"] = {"diff": {}}
             # compare with Target State File
             changes = {}
             for host in esxi_config_old:
@@ -986,7 +986,7 @@ def advanced_config(
                 changes[host] = salt.utils.data.recursive_diff(
                     esxi_config_old[host], config_input["advanced_options"])
             ret = {"name": name, "result": True,
-                   "comment": config_input["advanced_options"], "changes": changes}
+                   "comment": config_input["advanced_options"], "changes": changes["new"]}
             return ret
         else:
             ret["result"] = None
