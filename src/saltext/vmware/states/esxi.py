@@ -980,12 +980,14 @@ def advanced_config(
         if config_input:
             ret["changes"] = {"new": {}}
             # compare with Target State File
+            changes = {}
             for host in esxi_config_old:
-                changes = salt.utils.data.recursive_diff(host, config_input)
-                ret = {"name": name, "result": True,
-                       "comment": "", "changes": changes}
-                ret["comment"] = "Muri & Jordi changes test"
-                return ret
+                # I am assuming config input is the state shared across all hosts. (Verify)
+                changes[host] = salt.utils.data.recursive_diff(
+                    host, config_input)
+            ret = {"name": name, "result": True,
+                   "comment": "I am assuming config input is the state shared across all hosts. (Verify)", "changes": changes}
+            return ret
         else:
             ret["result"] = None
             ret["changes"] = {"new": {}}
