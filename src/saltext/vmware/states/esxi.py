@@ -985,16 +985,15 @@ def advanced_config(
                 # I am assuming config input is the state shared across all hosts. (Verify)
                 changes[host] = salt.utils.data.recursive_diff(
                     esxi_config_old[host], config_input["advanced_options"])
-                log.debug(changes[host])
             ret = {"name": name, "result": True,
-                   "comment": "I am assuming config input is the state shared across all hosts. (Verify)", "changes": changes}
+                   "comment": config_input["advanced_options"], "changes": changes}
             return ret
         else:
             ret["result"] = None
             ret["changes"] = {"new": {}}
             for host in esxi_config_old:
                 ret["changes"]["new"][host] = f"{name} will be set to {value}"
-                ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
+                #ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
             ret["comment"] = "These options are set to change."
         return ret
 
@@ -1011,7 +1010,7 @@ def advanced_config(
                 host_name=host,
                 service_instance=service_instance,
             )
-            ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
+            #ret["changes"]["old"][host] = f"{name} was {esxi_config_old[host][name]}"
             ret["changes"]["new"][host] = f"{name} was changed to {config[host][name]}"
 
     if change:
