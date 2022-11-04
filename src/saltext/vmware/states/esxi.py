@@ -1029,10 +1029,12 @@ def firewall_config(
     Set firewall configuration on matching ESXi hosts.
 
     name
-        Name of configuration in value. (required).
+        Name of configuration in value.
 
     value
-        Value for configuration on matching ESXi hosts. (required).
+        Value for configuration on matching ESXi hosts.
+
+    config_input #TODO
 
     datacenter_name
         Filter by this datacenter name (required when cluster is specified)
@@ -1099,12 +1101,11 @@ def firewall_config(
             ret["changes"] = {"diff": {}}
             # compare with Target State File
             changes = {}
-            for host in esxi_config_old:
-                # I am assuming config input is the state shared across all hosts. (Verify)
-                changes[host] = salt.utils.data.recursive_diff(
-                    esxi_config_old[host], config_input["firewall_rules"])["new"]
-            ret = {"name": name, "result": True,
-                   "comment": config_input["firewall_rules"], "changes": changes}
+            for host in hosts:
+                log.warn("host %r", host)
+                changes[host] = host
+                ret = {"name": name, "result": True,
+                   "comment": config_input["xxx"], "changes": changes}
             return ret
 
         ret["result"] = None
