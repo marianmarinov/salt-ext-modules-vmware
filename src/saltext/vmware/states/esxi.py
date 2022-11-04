@@ -984,7 +984,7 @@ def advanced_config(
             for host in esxi_config_old:
                 # I am assuming config input is the state shared across all hosts. (Verify)
                 changes[host] = salt.utils.data.recursive_diff(
-                    esxi_config_old[host], config_input)
+                    esxi_config_old[host], config_input["advanced_options"])
                 log.debug(changes[host])
             ret = {"name": name, "result": True,
                    "comment": "I am assuming config input is the state shared across all hosts. (Verify)", "changes": changes}
