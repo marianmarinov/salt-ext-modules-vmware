@@ -1078,7 +1078,6 @@ def firewall_config(
     for host in hosts:
         for firewall_conf in value[name]:
             ret["debugger"] = firewall_conf["name"]
-            return ret
             if host.name in old_configs:
                 fw_config = utils_esxi.get_firewall_config(
                     ruleset_name=firewall_conf["name"],
