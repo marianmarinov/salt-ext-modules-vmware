@@ -1073,7 +1073,7 @@ def firewall_config(
                 value[name][i]["allowed_host"] = dict(
                     value[name][i]["allowed_host"])
     old_configs = {}
-    ret["debugger"] = value[name]
+    ret["debugger"] = value[name]["name"]
     return ret
     for host in hosts:
         for firewall_conf in value[name]:
