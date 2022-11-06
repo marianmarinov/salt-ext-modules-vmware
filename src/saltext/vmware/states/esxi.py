@@ -1123,7 +1123,6 @@ def firewall_config(
                                 ] = f"{j} will be set to {firewall_conf[k][j]}"
                     else:
                         ret["debugger"] = old_configs[host.name][firewall_config["name"]][k]
-                        return ret
                         if old_configs[host.name][firewall_config["name"]][k] == firewall_conf[k]:
                             ret["changes"][host.name][firewall_config["name"]][
                                 k
