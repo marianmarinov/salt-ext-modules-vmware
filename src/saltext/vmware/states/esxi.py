@@ -1073,11 +1073,12 @@ def firewall_config(
                 value[name][i]["allowed_host"] = dict(
                     value[name][i]["allowed_host"])
     old_configs = {}
-    ret["debugger"] = value[name]["name"]
+    #ret["debugger"] = value[name]["name"]
     #return ret
     for host in hosts:
         for firewall_conf in value[name]:
             ret["debugger"] = firewall_conf
+            return ret
             if host.name in old_configs:
                 fw_config = utils_esxi.get_firewall_config(
                     ruleset_name=firewall_conf["name"],
