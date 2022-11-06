@@ -962,13 +962,9 @@ def advanced_config(
     log.debug("Running vmware_esxi.advanced_config")
     ret = {"name": name, "result": None, "comment": "", "changes": {}}
     if not service_instance:
-        #print("config = ", __opts__)
         log.warn("config %r", __opts__)
         service_instance = get_service_instance(config=__opts__)
-        # service_instance = get_service_instance(
-        #   config=__opts__, pillar=__pillar__)
 
-    #import pdb; pdb.set_trace()
     esxi_config_old = __salt__["vmware_esxi.get_advanced_config"](
         config_name=name,
         datacenter_name=datacenter_name,
@@ -978,14 +974,16 @@ def advanced_config(
     )
     if __opts__["test"]:
         if config_input:
-            ret["changes"] = {"new": {}}
+            ret["changes"] = {"diff": {}}
             # compare with Target State File
+            changes = {}
             for host in esxi_config_old:
-                changes = salt.utils.data.recursive_diff(host, config_input)
-                ret = {"name": name, "result": True,
-                       "comment": "", "changes": changes}
-                ret["comment"] = "Muri & Jordi changes test"
-                return ret
+                # I am assuming config input is the state shared across all hosts. (Verify)
+                changes[host] = salt.utils.data.recursive_diff(
+                    esxi_config_old[host], config_input["advanced_options"])["new"]
+            ret = {"name": name, "result": True,
+                   "comment": config_input["advanced_options"], "changes": changes}
+            return ret
         else:
             ret["result"] = None
             ret["changes"] = {"new": {}}
@@ -1019,8 +1017,9 @@ def advanced_config(
 
 
 def firewall_config(
-    name,
-    value,
+    name=None,
+    value=None,
+    config_input=None,
     datacenter_name=None,
     cluster_name=None,
     host_name=None,
@@ -1030,10 +1029,12 @@ def firewall_config(
     Set firewall configuration on matching ESXi hosts.
 
     name
-        Name of configuration in value. (required).
+        Name of configuration in value.
 
     value
-        Value for configuration on matching ESXi hosts. (required).
+        Value for configuration on matching ESXi hosts.
+
+    config_input #TODO
 
     datacenter_name
         Filter by this datacenter name (required when cluster is specified)
@@ -1099,6 +1100,17 @@ def firewall_config(
                 ]
 
     if __opts__["test"]:
+        if config_input:
+            ret["changes"] = {"diff": {}}
+            # compare with Target State File
+            changes = {}
+            for host in hosts:
+                log.warn("host %r", host)
+                changes[host] = host
+                ret = {"name": name, "result": True,
+                   "comment": config_input["xxx"], "changes": changes}
+            return ret
+
         ret["result"] = None
         ret["changes"] = {}
         for host in hosts:
