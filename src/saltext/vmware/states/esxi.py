@@ -1066,8 +1066,7 @@ def firewall_config(
         datacenter_name=datacenter_name,
         get_all_hosts=host_name is None,
     )
-    ret["VALUE"] = value
-    if isinstance(value[name], list):
+    if value[name] and isinstance(value[name], list):
         for i in range(len(value[name])):
             value[name][i] = dict(value[name][i])
             if "allowed_host" in value[name][i]:
