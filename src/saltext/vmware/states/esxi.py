@@ -1054,7 +1054,7 @@ def firewall_config(
             - name: prod
     """
     log.debug("Running vmware_esxi.firewall_config")
-    ret = {"name": name, "result": None, "comment": "", "changes": {}, "debugger": {}}
+    ret = {"name": "JordanTest", "result": None, "comment": "", "changes": {}, "debugger": {}}
     if not service_instance:
         service_instance = get_service_instance(
             config=__opts__)
