@@ -1055,7 +1055,7 @@ def firewall_config(
             - name: prod
     """
     log.debug("Running vmware_esxi.firewall_config")
-    ret = {"name": "JordanTest", "result": None, "comment": "", "changes": {}, "debugger": {}, "oldConfigs": {}}
+    ret = {"name": name, "result": None, "comment": "", "changes": {}}
     if not service_instance:
         service_instance = get_service_instance(
             config=__opts__)
@@ -1074,8 +1074,6 @@ def firewall_config(
                 value[name][i]["allowed_host"] = dict(
                     value[name][i]["allowed_host"])
     old_configs = {}
-    #ret["debugger"] = value[name]["name"]
-    #return ret
     for host in hosts:
         for firewall_conf in value[name]:
             ret["debugger"] = firewall_conf["name"]
