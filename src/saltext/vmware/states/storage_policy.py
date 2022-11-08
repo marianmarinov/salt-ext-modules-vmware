@@ -31,5 +31,5 @@ def storage_policy(name, storagePolicies):
             changes.append(policy['policyName'])
 
     ret = {"name": name, "result": True, "comment": "",
-           "changes": {"storagePolicies": changes}}
+           "changes": changes}
     return ret
