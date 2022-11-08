@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging
-
-import saltext.vmware.utils.connect as connect
+from salt.loader.lazy import global_injector_decorator
 import saltext.vmware.states.esxi as esxi
 import saltext.vmware.states.storage_policy as state_storage_policy
 
@@ -16,18 +15,15 @@ def __virtual__():
 
 def report(name, firewall_config, advanced_config, storage_policy):
     """
-    Creates drift_report
+    Creates drift report
 
     policies
         Policy list to set state to
     """
-
-    firewall_result = __salt__[
-        "vmware_esxi.firewall_config"](**firewall_config)
-    advanced_result = __salt__[
-        "vmware_esxi.advanced_config"](**advanced_config)
-    storage_policy_result = __salt__["vsphere_storage_policy.storage_policy"](
-        **storage_policy)
+    context = {"__opts__": __opts__}
+    firewall_result = global_injector_decorator(context)(esxi.firewall_config)(**firewall_config)
+    advanced_result = global_injector_decorator(context)(esxi.advanced_config)(**advanced_config)
+    storage_policy_result = global_injector_decorator(context)(state_storage_policy.storage_policy)(**storage_policy)
 
     esxi_result = {host: {"firewall_config": firewall_result[host],
                           "advanced_config": advanced_result[host]} for host in firewall_result}
