@@ -22,9 +22,11 @@ def report(name, firewall_config, advanced_config, storage_policy):
         Policy list to set state to
     """
 
-    firewall_result = esxi.firewall_config(**firewall_config)
-    advanced_result = esxi.advanced_config(**advanced_config)
-    storage_policy_result = state_storage_policy.storage_policy(
+    firewall_result = __salt__[
+        "vmware_esxi.firewall_config"](**firewall_config)
+    advanced_result = __salt__[
+        "vmware_esxi.advanced_config"](**advanced_config)
+    storage_policy_result = __salt__["vsphere_storage_policy.storage_policy"](
         **storage_policy)
 
     esxi_result = {host: {"firewall_config": firewall_result[host],
