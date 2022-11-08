@@ -29,5 +29,5 @@ def report(name, firewall_config, advanced_config, storage_policy):
                           "advanced_config": advanced_result[host]} for host in firewall_result}
 
     ret = {"name": name, "result": True, "comment": "",
-           "changes": {"esxi": {esxi_result}, "storagePolicies": storage_policy_result}}
+           "changes": {"esxi": esxi_result, "storagePolicies": storage_policy_result}}
     return ret
