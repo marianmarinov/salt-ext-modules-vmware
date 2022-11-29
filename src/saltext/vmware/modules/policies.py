@@ -326,7 +326,7 @@ def find_storage_policies(policy_name=None, service_instance=None, profile=None)
     
     return result
 
-def update_storage_policy(policy_name, policy_config, service_instance=None, profile=None):
+def save_storage_policy(policy_name, policy_config, service_instance=None, profile=None):
     """
     Update policy with given configuration.
 
@@ -346,13 +346,109 @@ def update_storage_policy(policy_name, policy_config, service_instance=None, pro
         config=__opts__, profile=profile
     )
     
-    pbmSi = connectToSpbm(service_instance._stub, service_instance._stub.schemeArgs['context'])
-    policies = findVsanStoragePolicies(pbmSi)
-    result = []
-    for policy in policies:
-        print("Cannot find the vSAN Storage Policy from VC server")
-        return None
+    pbmSi = _connect_spbm_(service_instance._stub, service_instance._stub.schemeArgs['context'])
+    policies = _get_vsan_storage_policies_(pbmSi)
+    
+    policy = None
+    for profile in policies:
+        if isinstance(profile, pbm.profile.CapabilityBasedProfile):
+            if profile.name == policy_name:
+                policy = profile
+                break
 
-    return {"status": "updated"}
+    profileManager = pbmSi.RetrieveContent().profileManager
+    
+    if policy is None:
+        if not policy_name:
+            raise salt.exceptions.CommandExecutionError(f"Policy name is required!")
+        
+        spec = pbm.profile.CapabilityBasedProfileCreateSpec()
+        resourceType = pbm.profile.ResourceType()
+        resourceType.resourceType = "STORAGE"
+        spec.resourceType = resourceType
+        subProfiles = []
+        for subProfileName in policy_config.keys():
+            subProfileProps = policy_config[subProfileName]
+            subProfile = pbm.profile.SubProfileCapabilityConstraints.SubProfile()
+            subProfile.name = subProfileName
+            capabilities = []
+            for propName in subProfileProps.keys():
+                propValue = subProfileProps[propName]
+                
+                capability = pbm.capability.CapabilityInstance()
+                
+                id = pbm.capability.CapabilityMetadata.UniqueId()
+                id.id = propName
+                id.namespace = subProfileName
+                capability.id = id
+                
+                constraint = pbm.capability.ConstraintInstance()
+                propertyInstance = pbm.capability.PropertyInstance()
+                propertyInstance.id = propName
+                propertyInstance.value = propValue
+                constraint.propertyInstance = [propertyInstance]
+                capability.constraint = [constraint]
+                
+                capabilities.append(capability)
+            subProfile.capability = capabilities
+            subProfiles.append(subProfile)
+        constraints = pbm.profile.SubProfileCapabilityConstraints()
+        constraints.subProfiles = subProfiles
+        spec.name = policy_name
+        spec.constraints = constraints
+        
+        policy = profileManager.PbmCreate(spec)
+        return {"status": "created"}
+    else:
+        spec = pbm.profile.CapabilityBasedProfileUpdateSpec()
+        subProfiles = list(policy.constraints.subProfiles)
+        for subProfileName in policy_config.keys():
+            subProfileProps = policy_config[subProfileName]
+            
+            # find existing
+            subProfile = None
+            for p in subProfiles:
+                if p.name == subProfileName:
+                    subProfile = p
+                    break
+            # otherwise create subProfile
+            if subProfile is None:
+                subProfile = pbm.profile.SubProfileCapabilityConstraints.SubProfile()
+                subProfile.name = subProfileName
+                subProfiles.append(subProfile)
+                
+            capabilities = list(subProfile.capability)
+            for propName in subProfileProps.keys():
+                propValue = subProfileProps[propName]
+                
+                # find existing
+                capability = None
+                for c in capabilities:
+                    if c.id.id == propName:
+                        capability = c
+                        break
+                # otherwise create capability
+                if capability is None:
+                    capability = pbm.capability.CapabilityInstance()
+                    id = pbm.capability.CapabilityMetadata.UniqueId()
+                    id.id = propName
+                    id.namespace = subProfileName
+                    capability.id = id
+                    capabilities.append(capability)
+                
+                constraint = pbm.capability.ConstraintInstance()
+                propertyInstance = pbm.capability.PropertyInstance()
+                propertyInstance.id = propName
+                propertyInstance.value = propValue
+                constraint.propertyInstance = [propertyInstance]
+                capability.constraint = [constraint]
+            subProfile.capability = capabilities
+            
+        constraints = policy.constraints # use from policy instance not pbm.profile.SubProfileCapabilityConstraints()
+        constraints.subProfiles = subProfiles
+        spec.constraints = constraints
+        
+        profileManager.PbmUpdate(policy.profileId, spec)
+        return {"status": "updated"}
 
 

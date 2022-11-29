@@ -71,8 +71,12 @@ def _drift_subtree_(result_tree, diff_level, result_subtree, level=0, new_subtre
 
 def _drift_recurse_(obj1, obj2, result, keys=[]):
     if isinstance(obj1, dict) and isinstance(obj2, dict):
-        # for k in set(obj1).symmetric_difference(obj2):
-        #     result.append(tuple(keys) + (k,) + ((obj1, obj2),))
+        if not keys: # first level only
+            for k in set(obj1).symmetric_difference(obj2):
+                if k in obj1:
+                    result.append(tuple(keys) + (k,) + ((obj1[k], {}),))
+                else:
+                    result.append(tuple(keys) + (k,) + (({}, obj2[k]),))
         for k in set(obj1).intersection(obj2):
             _drift_recurse_(obj1[k], obj2[k], result, keys=keys+[k])
     else:

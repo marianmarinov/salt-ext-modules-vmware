@@ -126,11 +126,26 @@ def storage_policies_config(name, config_input, service_instance=None, profile=N
     if not __opts__["test"] and changes:
         success = True
         
-        print('=============================')
-        print(json.dumps(changes, indent=2))
-        print('=============================')
+        # print('=============================')
+        # print(json.dumps(changes, indent=2))
+        # print('=============================')
         
-        ret["comment"] = "" # it's more readable if passed as object
+        comments = {}
+        for new_change in changes:
+            try:
+                policy_module.save_storage_policy(new_change['name'], new_change['constraints'], 
+                                                  service_instance, profile)
+                comments[new_change['name']] = { 
+                        "status" : "SUCCESS" , 
+                        "message": f"Storage policy '{new_change['name']}' has been changed successfully."
+                    }
+            except Exception as err:
+                comments[new_change['name']] = { 
+                        "status" : "FAILURE" , 
+                        "message": f"Error occured while setting storage policy '{new_change['name']}': {err}"
+                    }
+        
+        ret["comment"] = comments # it's more readable if passed as object
         ret["result"] = success # at least one success
 
     return ret

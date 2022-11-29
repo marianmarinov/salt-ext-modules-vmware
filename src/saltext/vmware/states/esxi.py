@@ -1347,7 +1347,7 @@ def firewall_rules_config(
 
     # If it's not dry-run and has changes, then apply changes
     if not __opts__["test"] and hosts_changes:
-        comments = []
+        comments = {}
         success = False
         for host_name in hosts_changes:
             changes = hosts_changes[host_name]
@@ -1359,9 +1359,15 @@ def firewall_rules_config(
                         service_instance=service_instance,
                     )
                     success = True
-                    comments.append(f"SUCCESS: Rule '{new_rule['name']}' has been changed for host {host_name}.")
-                except Exception:
-                    comments.append(f"FAILURE: Error occured while setting rule '{new_rule['name']}' for host {host_name}!")
+                    comments[new_rule['name']] = { 
+                        "status" : "SUCCESS" , 
+                        "message": f"Rule '{new_rule['name']}' has been changed successfully for host {host_name}."
+                    }
+                except Exception as err:
+                    comments[new_rule['name']] = { 
+                        "status" : "FAILURE" , 
+                        "message": f"Error occured while setting rule '{new_rule['name']}' for host {host_name}: {err}"
+                    }
         # ret["comment"] = "\n ".join(comments)
         ret["comment"] = comments # it's more readable if passed as object
         ret["result"] = success # at least one success
