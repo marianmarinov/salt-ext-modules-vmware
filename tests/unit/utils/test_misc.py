@@ -106,5 +106,5 @@ storage_policy_old = {
 
 
 
-diff = misc.drift_report(firewall_rule_old, firewall_rule_new, diff_level=0)
-print(json.dumps(diff, indent=2))
+# diff = misc.drift_report(firewall_rule_old, firewall_rule_new, diff_level=0)
+# print(json.dumps(diff, indent=2))
