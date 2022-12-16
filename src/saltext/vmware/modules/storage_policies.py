@@ -1,7 +1,7 @@
 # Copyright 2021 VMware, Inc.
 # SPDX-License: Apache-2.0
-import logging
 import json
+import logging
 
 import salt.exceptions
 import saltext.vmware.utils.connect as connect
@@ -24,25 +24,27 @@ def __virtual__():
         return False, "Unable to import pyVmomi module."
     return __virtualname__
 
-def _connect_spbm_(stub, context):
-   hostname = stub.host.split(":")[0]
-   sessionCookie = stub.cookie.split('"')[1]
-   VmomiSupport.GetRequestContext()["vcSessionCookie"] = sessionCookie
 
-   pbmStub = SoapStubAdapter(
-         host=hostname,
-         path = "/pbm/sdk",
-         version = "pbm.version.version2",
-         sslContext=context,
-         )
-   pbmStub.cookie = stub.cookie
-   pbmSi = pbm.ServiceInstance("ServiceInstance", pbmStub)
-   return pbmSi
+def _connect_spbm_(stub, context):
+    hostname = stub.host.split(":")[0]
+    sessionCookie = stub.cookie.split('"')[1]
+    VmomiSupport.GetRequestContext()["vcSessionCookie"] = sessionCookie
+
+    pbmStub = SoapStubAdapter(
+        host=hostname,
+        path="/pbm/sdk",
+        version="pbm.version.version2",
+        sslContext=context,
+    )
+    pbmStub.cookie = stub.cookie
+    pbmSi = pbm.ServiceInstance("ServiceInstance", pbmStub)
+    return pbmSi
+
 
 def _get_vsan_storage_policies_(pbmSi):
     """
     Example of VMOMI Object:
-    
+
     (pbm.profile.CapabilityBasedProfile) {
         dynamicType = <unset>,
         dynamicProperty = (vmodl.DynamicProperty) [],
@@ -289,14 +291,13 @@ def _get_vsan_storage_policies_(pbmSi):
     Returns:
         list: of profile VMOMI objects
     """
-    resourceType = pbm.profile.ResourceType(
-        resourceType=pbm.profile.ResourceTypeEnum.STORAGE
-    )
+    resourceType = pbm.profile.ResourceType(resourceType=pbm.profile.ResourceTypeEnum.STORAGE)
 
     profileManager = pbmSi.RetrieveContent().profileManager
     profileIds = profileManager.PbmQueryProfile(resourceType)
     profiles = profileManager.PbmRetrieveContent(profileIds)
     return profiles
+
 
 def find(policy_name=None, service_instance=None, profile=None):
     """
@@ -314,41 +315,38 @@ def find(policy_name=None, service_instance=None, profile=None):
     service_instance = service_instance or connect.get_service_instance(
         config=__opts__, profile=profile
     )
-    
-    pbmSi = _connect_spbm_(service_instance._stub, service_instance._stub.schemeArgs['context'])
+
+    pbmSi = _connect_spbm_(service_instance._stub, service_instance._stub.schemeArgs["context"])
     policies = _get_vsan_storage_policies_(pbmSi)
-    
+
     result_policies = []
     for policy in policies:
         if isinstance(policy, pbm.profile.CapabilityBasedProfile):
             if policy_name is None or policy.name == policy_name:
                 result_policies.append(policy)
-    
+
     # make JSON representation of current policies
     # old_configs holds only the rules that are in the scope of interest (provided in argument config_input)
     result = []
     for policy in result_policies:
-        policy_json = {
-            "policyName": policy.name
-        }
-        policy_json['constraints'] = []
+        policy_json = {"policyName": policy.name}
+        policy_json["constraints"] = []
         try:
             for sub_profile in policy.constraints.subProfiles:
-                policy_constrain = {
-                    "name": sub_profile.name
-                }
-                policy_json['constraints'].append(policy_constrain)
+                policy_constrain = {"name": sub_profile.name}
+                policy_json["constraints"].append(policy_constrain)
 
                 for capability in sub_profile.capability:
                     for constraint in capability.constraint:
                         for prop in constraint.propertyInstance:
                             policy_constrain[prop.id] = prop.value
         except Exception as err:
-            pass # skip if there is no subProfiles in policy.constraints
-            
+            pass  # skip if there is no subProfiles in policy.constraints
+
         result.append(policy_json)
-    
+
     return result
+
 
 def save(policy_config, service_instance=None, profile=None):
     """
@@ -366,12 +364,12 @@ def save(policy_config, service_instance=None, profile=None):
     service_instance = service_instance or connect.get_service_instance(
         config=__opts__, profile=profile
     )
-    
-    pbmSi = _connect_spbm_(service_instance._stub, service_instance._stub.schemeArgs['context'])
+
+    pbmSi = _connect_spbm_(service_instance._stub, service_instance._stub.schemeArgs["context"])
     policies = _get_vsan_storage_policies_(pbmSi)
-    
-    policy_name = policy_config['policyName']
-    
+
+    policy_name = policy_config["policyName"]
+
     policy = None
     for profile in policies:
         if isinstance(profile, pbm.profile.CapabilityBasedProfile):
@@ -380,38 +378,38 @@ def save(policy_config, service_instance=None, profile=None):
                 break
 
     profileManager = pbmSi.RetrieveContent().profileManager
-    
+
     if policy is None:
         if not policy_name:
             raise salt.exceptions.CommandExecutionError(f"Policy name is required!")
-        
+
         spec = pbm.profile.CapabilityBasedProfileCreateSpec()
         resourceType = pbm.profile.ResourceType()
         resourceType.resourceType = "STORAGE"
         spec.resourceType = resourceType
         subProfiles = []
-        for subProfileProps in policy_config['constraints']:
-            subProfileName = subProfileProps['name']
+        for subProfileProps in policy_config["constraints"]:
+            subProfileName = subProfileProps["name"]
             subProfile = pbm.profile.SubProfileCapabilityConstraints.SubProfile()
             subProfile.name = subProfileName
             capabilities = []
             for propName in subProfileProps.keys():
                 propValue = subProfileProps[propName]
-                
+
                 capability = pbm.capability.CapabilityInstance()
-                
+
                 id = pbm.capability.CapabilityMetadata.UniqueId()
                 id.id = propName
                 id.namespace = subProfileName
                 capability.id = id
-                
+
                 constraint = pbm.capability.ConstraintInstance()
                 propertyInstance = pbm.capability.PropertyInstance()
                 propertyInstance.id = propName
                 propertyInstance.value = propValue
                 constraint.propertyInstance = [propertyInstance]
                 capability.constraint = [constraint]
-                
+
                 capabilities.append(capability)
             subProfile.capability = capabilities
             subProfiles.append(subProfile)
@@ -419,15 +417,15 @@ def save(policy_config, service_instance=None, profile=None):
         constraints.subProfiles = subProfiles
         spec.name = policy_name
         spec.constraints = constraints
-        
+
         policy = profileManager.PbmCreate(spec)
         return {"status": "created"}
     else:
         spec = pbm.profile.CapabilityBasedProfileUpdateSpec()
         subProfiles = list(policy.constraints.subProfiles)
-        for subProfileProps in policy_config['constraints']:
-            subProfileName = subProfileProps['name']
-            
+        for subProfileProps in policy_config["constraints"]:
+            subProfileName = subProfileProps["name"]
+
             # find existing
             subProfile = None
             for p in subProfiles:
@@ -439,11 +437,11 @@ def save(policy_config, service_instance=None, profile=None):
                 subProfile = pbm.profile.SubProfileCapabilityConstraints.SubProfile()
                 subProfile.name = subProfileName
                 subProfiles.append(subProfile)
-                
+
             capabilities = list(subProfile.capability)
             for propName in subProfileProps.keys():
                 propValue = subProfileProps[propName]
-                
+
                 # find existing
                 capability = None
                 for c in capabilities:
@@ -458,7 +456,7 @@ def save(policy_config, service_instance=None, profile=None):
                     id.namespace = subProfileName
                     capability.id = id
                     capabilities.append(capability)
-                
+
                 constraint = pbm.capability.ConstraintInstance()
                 propertyInstance = pbm.capability.PropertyInstance()
                 propertyInstance.id = propName
@@ -466,12 +464,12 @@ def save(policy_config, service_instance=None, profile=None):
                 constraint.propertyInstance = [propertyInstance]
                 capability.constraint = [constraint]
             subProfile.capability = capabilities
-            
-        constraints = policy.constraints # use from policy instance not pbm.profile.SubProfileCapabilityConstraints()
+
+        constraints = (
+            policy.constraints
+        )  # use from policy instance not pbm.profile.SubProfileCapabilityConstraints()
         constraints.subProfiles = subProfiles
         spec.constraints = constraints
-        
+
         profileManager.PbmUpdate(policy.profileId, spec)
         return {"status": "updated"}
-
-
