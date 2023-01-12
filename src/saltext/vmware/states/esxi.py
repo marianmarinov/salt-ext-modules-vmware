@@ -917,8 +917,8 @@ def advanced_configs(
           vmware_esxi.advanced_configs:
             - less: True
             - configs:
-              key_1: value_1
-              key_2: value_2
+                key_1: value_1
+                key_2: value_2
     """
     log.debug("Running vmware_esxi.advanced_configs")
     service_instance = service_instance or connect.get_service_instance(
@@ -948,6 +948,8 @@ def advanced_configs(
     for host in esxi_config_old:
         for name in configs:
             value = configs[name]
+            if name not in esxi_config_old[host]:
+                raise ValueError(f"Invalid config key '{name}'")
             if esxi_config_old[host][name] != value:
                 config = __salt__["vmware_esxi.set_advanced_configs"](
                     config_dict={name: value},
