@@ -917,8 +917,8 @@ def advanced_configs(
           vmware_esxi.advanced_configs:
             - less: True
             - configs:
-              key_1: value_1
-              key_2: value_2
+                DCUI.Access: root
+                Net.BlockGuestBPDU: 1
     """
     log.debug("Running vmware_esxi.advanced_configs")
     service_instance = service_instance or connect.get_service_instance(
@@ -934,6 +934,16 @@ def advanced_configs(
     )
 
     changes = {} if less else {"new": {}, "old": {}}
+
+    for key in configs:
+        for host in esxi_config_old:
+            if key not in esxi_config_old[host]:
+                return {
+                    "name": name,
+                    "result": False,
+                    "comment": f"The config {key} does not exist on host {host}",
+                    "changes": changes,
+                }
 
     if __opts__["test"]:
         for host in esxi_config_old:
