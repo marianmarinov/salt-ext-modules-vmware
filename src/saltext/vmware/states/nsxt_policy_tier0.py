@@ -3,6 +3,8 @@ State module for NSX-T tier0 gateway
 """
 import logging
 
+import salt.utils.data
+
 log = logging.getLogger(__name__)
 try:
     from saltext.vmware.modules import nsxt_policy_tier0
@@ -16,6 +18,281 @@ def __virtual__():
     if not HAS_POLICY_TIER0:
         return False, "'nsxt_policy_tier0' binary not found on system"
     return "nsxt_policy_tier0"
+
+
+def config(
+    name,
+    display_name,
+    arp_limit=None,
+    bfd_peers=None,
+    cert=None,
+    cert_common_name=None,
+    description=None,
+    default_rule_logging=None,
+    dhcp_config_id=None,
+    disable_firewall=None,
+    failover_mode=None,
+    force_whitelisting=None,
+    ha_mode=None,
+    id=None,
+    internal_transit_subnets=None,
+    intersite_config=None,
+    ipv6_ndra_profile_id=None,
+    ipv6_dad_profile_id=None,
+    locale_services=None,
+    rd_admin_field=None,
+    static_routes=None,
+    tags=None,
+    transit_subnets=None,
+    vrf_config=None,
+):
+    """
+    Creates or Updates(if present with same display_name) tier 0 gateway and its sub-resources with the given
+    specifications.
+
+    Note: To delete any subresource of tier 0 provide state parameter as absent
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt vm_minion nsxt_policy_tier0.config display_name=<tier 0 gateway name> ha_mode: ACTIVE_ACTIVE...
+
+    .. code-block:: yaml
+
+      nsxt_policy_tier0.config:
+        - name: Create tier 0 gateway
+          display_name: <tier 0 gateway name>
+          ha_mode: "ACTIVE_ACTIVE"
+    """
+
+    changes = {}
+    desired = {
+        "display_name": display_name,
+        "arp_limit": arp_limit,
+        "bfd_peers": bfd_peers,
+        "cert": cert,
+        "cert_common_name": cert_common_name,
+        "description": description,
+        "default_rule_logging": default_rule_logging,
+        "dhcp_config_id": dhcp_config_id,
+        "disable_firewall": disable_firewall,
+        "failover_mode": failover_mode,
+        "force_whitelisting": force_whitelisting,
+        "ha_mode": ha_mode,
+        "id": id,
+        "internal_transit_subnets": internal_transit_subnets,
+        "intersite_config": intersite_config,
+        "ipv6_ndra_profile_id": ipv6_ndra_profile_id,
+        "ipv6_dad_profile_id": ipv6_dad_profile_id,
+        "locale_services": locale_services,
+        "rd_admin_field": rd_admin_field,
+        "static_routes": static_routes,
+        "tags": tags,
+        "transit_subnets": transit_subnets,
+        "vrf_config": vrf_config,
+    }
+    nsxt_config = __pillar__.get("saltext.vmware.nsxt")
+    if nsxt_config is None:
+        return {
+            "name": name,
+            "result": False,
+            "comment": "No credentials in pillar. Please set up them on saltext.vmware.nsxt",
+            "changes": changes,
+        }
+    get_result = __salt__["nsxt_policy_tier0.get_by_display_name"](
+        hostname=nsxt_config.get("host"),
+        username=nsxt_config.get("username"),
+        password=nsxt_config.get("password"),
+        verify_ssl=False,
+        display_name=display_name,
+    )
+    if "error" in get_result:
+        return {
+            "name": name,
+            "result": False,
+            "comment": f"Failed to get tier-0 gateways from NSX-T Manager: {get_result['error']}",
+            "changes": changes,
+        }
+
+    result_count = len(get_result.get("results"))
+    if result_count > 1:
+        return {
+            "name": name,
+            "result": False,
+            "comment": f"Found multiple results ({result_count}) for Tier-0 gateway with "
+            "display_name {display_name}",
+            "changes": changes,
+        }
+    elif result_count == 0:  # Create
+        changes = {"new": desired}
+        if __opts__["test"]:
+            return {
+                "name": name,
+                "result": None,
+                "comment": "The following Tier-0 gateway would be created",
+                "changes": changes,
+            }
+        log.info(
+            "Creating new tier0 gateway as no results were found in NSX-T with display_name %s",
+            display_name,
+        )
+        create_execution_logs = __salt__["nsxt_policy_tier0.create_or_update"](
+            hostname=nsxt_config.get("host"),
+            username=nsxt_config.get("username"),
+            password=nsxt_config.get("password"),
+            verify_ssl=False,
+            id=id,
+            arp_limit=arp_limit,
+            cert=cert,
+            cert_common_name=cert_common_name,
+            display_name=display_name,
+            tags=tags,
+            description=description,
+            default_rule_logging=default_rule_logging,
+            ha_mode=ha_mode,
+            disable_firewall=disable_firewall,
+            failover_mode=failover_mode,
+            force_whitelisting=force_whitelisting,
+            internal_transit_subnets=internal_transit_subnets,
+            intersite_config=intersite_config,
+            ipv6_ndra_profile_id=ipv6_ndra_profile_id,
+            ipv6_dad_profile_id=ipv6_dad_profile_id,
+            rd_admin_field=rd_admin_field,
+            transit_subnets=transit_subnets,
+            dhcp_config_id=dhcp_config_id,
+            vrf_config=vrf_config,
+            static_routes=static_routes,
+            bfd_peers=bfd_peers,
+            locale_services=locale_services,
+        )
+
+        log.info("Execution logs for creating tier 0 : {}".format(create_execution_logs))
+        last_log_entry = create_execution_logs[-1]
+        if "error" in last_log_entry:
+            return {
+                "name": name,
+                "result": False,
+                "comment": f"Failed while creating tier0 gateway and sub-resources: {last_log_entry['error']}\n Execution logs: {create_execution_logs}",
+                "changes": changes,
+            }
+        tier0_execution_log = next(
+            (
+                execution_log
+                for execution_log in create_execution_logs
+                if execution_log.get("resourceType") == "tier0"
+            ),
+            None,
+        )
+        tier_0_id = tier0_execution_log.get("results").get("id")
+        tier0_hierarchy = __salt__["nsxt_policy_tier0.get_hierarchy"](
+            hostname=nsxt_config.get("host"),
+            username=nsxt_config.get("username"),
+            password=nsxt_config.get("password"),
+            verify_ssl=False,
+            cert=cert,
+            cert_common_name=cert_common_name,
+            tier0_id=tier_0_id,
+        )
+        if "error" in tier0_hierarchy:
+            return {
+                "name": name,
+                "result": False,
+                "comment": f"Failed while querying tier0 gateway and its sub-resources: {tier0_hierarchy['error']}",
+                "changes": changes,
+            }
+        return {
+            "name": name,
+            "result": None,
+            "comment": f"Created Tier-0 gateway {display_name} successfully",
+            "changes": changes,
+        }
+
+    else:
+        log.info("Updating existing tier0 gateway with display_name %s", display_name)
+        tier_0_id = get_result["results"][0]["id"]
+        tier0_hierarchy_before_update = __salt__["nsxt_policy_tier0.get_hierarchy"](
+            hostname=nsxt_config.get("host"),
+            username=nsxt_config.get("username"),
+            password=nsxt_config.get("password"),
+            verify_ssl=False,
+            cert=cert,
+            cert_common_name=cert_common_name,
+            tier0_id=tier_0_id,
+        )
+        if "error" in tier0_hierarchy_before_update:
+            return {
+                "name": name,
+                "result": False,
+                "comment": f"Failed while querying tier0 gateway and its sub-resources: {tier0_hierarchy_before_update['error']}",
+                "changes": changes,
+            }
+
+        update_execution_logs = __salt__["nsxt_policy_tier0.create_or_update"](
+            hostname=nsxt_config.get("host"),
+            username=nsxt_config.get("username"),
+            password=nsxt_config.get("password"),
+            verify_ssl=False,
+            id=id,
+            arp_limit=arp_limit,
+            cert=cert,
+            cert_common_name=cert_common_name,
+            display_name=display_name,
+            tags=tags,
+            description=description,
+            default_rule_logging=default_rule_logging,
+            ha_mode=ha_mode,
+            disable_firewall=disable_firewall,
+            failover_mode=failover_mode,
+            force_whitelisting=force_whitelisting,
+            internal_transit_subnets=internal_transit_subnets,
+            intersite_config=intersite_config,
+            ipv6_ndra_profile_id=ipv6_ndra_profile_id,
+            ipv6_dad_profile_id=ipv6_dad_profile_id,
+            rd_admin_field=rd_admin_field,
+            transit_subnets=transit_subnets,
+            dhcp_config_id=dhcp_config_id,
+            vrf_config=vrf_config,
+            static_routes=static_routes,
+            bfd_peers=bfd_peers,
+            locale_services=locale_services,
+        )
+
+        log.info("Execution logs for updating tier 0 : {}".format(update_execution_logs))
+
+        # update execution logs can come empty if there is nothing to update
+        if update_execution_logs:
+            last_log_entry = update_execution_logs[-1]
+            if "error" in last_log_entry:
+                return {
+                    "name": name,
+                    "result": False,
+                    "comment": f"Failed while updating tier0 gateway and sub-resources: {last_log_entry['error']}\n Execution logs: {update_execution_logs}",
+                    "changes": changes,
+                }
+
+        tier0_hierarchy_after_update = __salt__["nsxt_policy_tier0.get_hierarchy"](
+            hostname=nsxt_config.get("host"),
+            username=nsxt_config.get("username"),
+            password=nsxt_config.get("password"),
+            verify_ssl=False,
+            cert=cert,
+            cert_common_name=cert_common_name,
+            tier0_id=tier_0_id,
+        )
+        if "error" in tier0_hierarchy_after_update:
+            return {
+                "name": name,
+                "result": False,
+                "comment": f"Failed while querying tier0 gateway and its sub-resources: {tier0_hierarchy_after_update['error']}",
+                "changes": changes,
+            }
+        return {
+            "name": name,
+            "result": False,
+            "comment": f"Updated Tier-0 gateway {display_name} successfully",
+            "changes": {"new": tier0_hierarchy_after_update, "old": tier0_hierarchy_before_update},
+        }
 
 
 def present(
